@@ -8,6 +8,9 @@ import Tutor from "./pages/Tutor";
 import Student from "./pages/Student";
 import Assignment from "./pages/Assignment";
 import Login from "./pages/Login";
+import PrivateRoute from "./components/PrivateRoute";
+import Payment from "./pages/Payment";
+import StudentAssignTable from "./pages/StudentAssignTable";
 
 export default function App() {
   const location = useLocation();
@@ -31,16 +34,80 @@ export default function App() {
         {/* Page content */}
         <div className="flex-1 p-6 bg-gray-100 overflow-y-auto">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/course" element={<Courses />} />
-            <Route path="/reviews" element={<Reviews />} />
-            <Route path="/tutor" element={<Tutor />} />
-            <Route path="/student" element={<Student />} />
-            <Route path="/assignment" element={<Assignment />} />
+            {/* Public */}
+            <Route path="/login" element={<Login />} />
+
+            {/* Protected */}
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/course"
+              element={
+                <PrivateRoute>
+                  <Courses />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/reviews"
+              element={
+                <PrivateRoute>
+                  <Reviews />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/payment"
+              element={
+                <PrivateRoute>
+                  <Payment />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/tutor"
+              element={
+                <PrivateRoute>
+                  <Tutor />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/student"
+              element={
+                <PrivateRoute>
+                  <Student />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/studentassign"
+              element={
+                <PrivateRoute>
+                  <StudentAssignTable />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/assignment"
+              element={
+                <PrivateRoute>
+                  <Assignment />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+          
 
             
-            <Route path="/login" element={<Login />} />
-          </Routes>
+
+          
         </div>
       </div>
     </div>

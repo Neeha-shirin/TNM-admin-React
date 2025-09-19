@@ -28,12 +28,12 @@ export default function MonthlyRevenueCard() {
       {
         label: "Revenue",
         data: [20, 35, 50, 40, 65, 80],
-        borderColor: "#3b82f6",
-        backgroundColor: "rgba(59, 130, 246, 0.15)",
+        borderColor: "#1c8536ff",
+        backgroundColor: "rgba(31, 66, 18, 0.15)",
         tension: 0.4,
         fill: true,
         pointRadius: 4,
-        pointBackgroundColor: "#3b82f6",
+        pointBackgroundColor: "#1c8536ff",
       },
     ],
   };

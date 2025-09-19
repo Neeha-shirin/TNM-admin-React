@@ -1,320 +1,573 @@
-// student.jsx
 import React, { useState, useEffect } from "react";
-import StudentCard from "../components/Studentcard/Studentcard";
+import { motion, AnimatePresence } from "framer-motion";
+import StatsCard from "../components/StatsCard"; 
+
+import api from "../api";
 
 const Student = () => {
   const [students, setStudents] = useState([]);
   const [editingStudent, setEditingStudent] = useState(null);
   const [deletingStudent, setDeletingStudent] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch students from backend
   useEffect(() => {
-    setStudents([
-      { id: 1, name: "Michael Scott", email: "michael@example.com", course: "Business Management", status: "Active", enrollmentDate: "2023-01-15" },
-      { id: 2, name: "Pam Beesly", email: "pam@example.com", course: "Art & Design", status: "Inactive", enrollmentDate: "2022-09-10" },
-      { id: 3, name: "Jim Halpert", email: "jim@example.com", course: "Marketing", status: "Active", enrollmentDate: "2023-03-22" },
-      { id: 4, name: "Dwight Schrute", email: "dwight@example.com", course: "Agricultural Science", status: "Active", enrollmentDate: "2023-02-05" },
-      { id: 5, name: "Angela Martin", email: "angela@example.com", course: "Accounting", status: "On Leave", enrollmentDate: "2022-11-30" },
-    ]);
+    fetchStudents();
   }, []);
 
-  const handleEditClick = (student) => setEditingStudent(student);
-  const handleSaveStudent = () => {
-    setStudents(students.map((s) => (s.id === editingStudent.id ? editingStudent : s)));
-    setEditingStudent(null);
-  };
-  const handleDeleteConfirm = () => {
-    setStudents(students.filter((s) => s.id !== deletingStudent.id));
-    setDeletingStudent(null);
+  const fetchStudents = async () => {
+  try {
+    setIsLoading(true);
+    const res = await api.get("/admin/students/");
+    console.log("API response:", res.data);
+
+    // Map mobile_number -> phone
+    const normalized = res.data.map(student => ({
+      ...student,
+      phone: student.mobile_number || "N/A"
+    }));
+
+    setStudents(normalized);
+  } catch (err) {
+    console.error("Error fetching students:", err);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  // Save edited student
+  const handleSaveStudent = async () => {
+    try {
+      const payload = {
+        full_name: editingStudent.full_name,
+        email: editingStudent.email,
+        mobile_number: editingStudent.phone,
+        state: editingStudent.state,
+        city: editingStudent.city,
+        pincode: editingStudent.pincode,
+        categories: Array.isArray(editingStudent.categories)
+          ? editingStudent.categories
+          : editingStudent.categories.split(",").map((c) => c.trim()),
+        qualification: editingStudent.qualification || "",
+        gender: editingStudent.gender || "",
+        status: editingStudent.status,
+      };
+      await api.put(`/admin/students/${editingStudent.id}/`, payload);
+      fetchStudents();
+      setEditingStudent(null);
+    } catch (err) {
+      console.error("Error updating student:", err);
+    }
   };
 
+  // Delete student
+  const handleDeleteConfirm = async () => {
+    try {
+      await api.delete(`/admin/students/${deletingStudent.id}/`);
+      fetchStudents();
+      setDeletingStudent(null);
+    } catch (err) {
+      console.error("Error deleting student:", err);
+    }
+  };
+
+  // Search/filter students
+  const filteredStudents = students.filter((student) =>
+    (student.full_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (student.email?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (student.phone?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (student.city?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (student.state?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (student.pincode?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (student.qualification?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (student.gender?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (Array.isArray(student.categories)
+      ? student.categories.join(", ").toLowerCase()
+      : student.categories?.toLowerCase()
+    ).includes(searchTerm.toLowerCase())
+  );
+
+  // Status colors and icons
   const statusColors = {
-    Active: "bg-green-100 text-green-800",
-    Inactive: "bg-red-100 text-red-800",
-    "On Leave": "bg-yellow-100 text-yellow-800",
+    Active: "bg-green-100 text-green-800 border-green-200",
+    Inactive: "bg-red-100 text-red-800 border-red-200",
+    "On Leave": "bg-amber-100 text-amber-800 border-amber-200",
   };
 
   const statusIcons = {
-    Active: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-      </svg>
-    ),
-    Inactive: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-      </svg>
-    ),
-    "On Leave": (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-      </svg>
-    ),
+    Active: <i className="fas fa-check-circle mr-1"></i>,
+    Inactive: <i className="fas fa-times-circle mr-1"></i>,
+    "On Leave": <i className="fas fa-pause-circle mr-1"></i>,
   };
 
-  const filteredStudents = students.filter(student => 
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Modal component
+  const Modal = ({ isOpen, onClose, children, size = "md" }) => {
+    const sizeClasses = {
+      sm: "max-w-sm",
+      md: "max-w-md",
+      lg: "max-w-lg",
+      xl: "max-w-xl"
+    };
+
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-emerald-900 bg-opacity-70 flex justify-center items-center z-50 p-4"
+            onClick={onClose}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className={`bg-white rounded-2xl shadow-2xl p-6 w-full ${sizeClasses[size]} relative overflow-auto max-h-[90vh]`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-teal-400"></div>
+              {children}
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="absolute top-4 right-4 text-emerald-500 hover:text-emerald-700 transition-colors duration-200 bg-emerald-50 p-1.5 rounded-full"
+              >
+                <i className="fas fa-times text-sm"></i>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8"
+        >
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Student Management</h1>
-            <p className="text-gray-600 mt-2">Manage all students in your institution</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-emerald-900 flex items-center">
+              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-2.5 rounded-xl mr-3 shadow-md">
+                <i className="fas fa-user-graduate"></i>
+              </span>
+              Student Management
+            </h1>
+            <p className="text-emerald-700 mt-2 ml-1">Manage all students in your institution</p>
           </div>
-         
+          
+        </motion.div>
+
+        {/* Dashboard cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+            <StatsCard
+              title="Total Students"
+              value={students.length}
+              icon="fas fa-users"
+              color="border-l-emerald-500"
+            />
+            <StatsCard
+              title="Active Students"
+              value={students.filter((s) => s.status === "Active").length}
+              icon="fas fa-user-check"
+              color="border-l-green-500"
+            />
+            <StatsCard
+              title="Courses"
+              value={8} 
+              icon="fas fa-book"
+              color="border-l-teal-500"
+            />
+  
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-  <StudentCard
-    icon={
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path d="M12 14l9-5-9-5-9 5 9 5z" />
-        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-      </svg>
-    }
-    title="Total Students"
-    value={students.length}
-    bgColor="bg-white"
-    iconBg="bg-blue-100 p-3"
-  />
 
-  <StudentCard
-    icon={
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    }
-    title="Active Students"
-    value={students.filter(s => s.status === 'Active').length}
-    bgColor="bg-white"
-    iconBg="bg-green-100 p-3"
-  />
-
-  <StudentCard
-    icon={
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-      </svg>
-    }
-    title="Courses"
-    value={8}
-    bgColor="bg-white"
-    iconBg="bg-purple-100 p-3"
-  />
-
-  <StudentCard
-    icon={
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    }
-    title="Attendance Rate"
-    value="94%"
-    bgColor="bg-white"
-    iconBg="bg-yellow-100 p-3"
-  />
-</div>
-
-        
-        
-
-
-        {/* Search and Filter */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between">
-            <div className="relative w-full md:w-1/3 mb-4 md:mb-0">
+        {/* Search and Actions */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-100 mb-6"
+        >
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-grow">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                </svg>
+                <i className="fas fa-search text-emerald-400"></i>
               </div>
               <input
                 type="text"
-                placeholder="Search students by name, course or email"
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Search students by name, email, location..."
+                className="w-full pl-10 pr-4 py-3 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
-            <div className="flex space-x-2">
-              <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
-                </svg>
-                Filters
-              </button>
-              <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-                </svg>
-                Sort
-              </button>
+            <div className="flex gap-2">
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-4 py-2.5 border border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-xl flex items-center"
+              >
+                <i className="fas fa-filter mr-2"></i> Filter
+              </motion.button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Students Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Students table */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden"
+        >
+          <div className="p-5 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/50 to-white">
+            <h2 className="text-xl font-semibold text-emerald-800 flex items-center">
+              <div className="bg-emerald-500 text-white p-3 rounded-xl mr-3 shadow-sm">
+                <i className="fas fa-list"></i>
+              </div>
+              Student Directory
+              <span className="ml-2 text-emerald-500 font-normal">
+                ({filteredStudents.length} {filteredStudents.length === 1 ? 'student' : 'students'})
+              </span>
+            </h2>
+          </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-emerald-100">
+              <thead className="bg-emerald-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollment Date</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Profile</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Full Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-right text-xs font-medium text-emerald-700 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-medium">
-                            {student.name.charAt(0)}
-                          </div>
+              <tbody className="bg-white divide-y divide-emerald-100">
+                {isLoading ? (
+                  // Loading skeleton
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <tr key={index} className="animate-pulse">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-12 w-12 rounded-full bg-emerald-100"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-emerald-100 rounded w-32"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-emerald-100 rounded w-40"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-emerald-100 rounded w-24"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-6 bg-emerald-100 rounded-full w-16"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex justify-end space-x-2">
+                          <div className="h-8 bg-emerald-100 rounded-lg w-16"></div>
+                          <div className="h-8 bg-emerald-100 rounded-lg w-16"></div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                          <div className="text-sm text-gray-500">{student.email}</div>
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredStudents.length > 0 ? (
+                  filteredStudents.map((student) => (
+                    <motion.tr
+                      key={student.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="hover:bg-emerald-50/50 transition-colors cursor-pointer group"
+                      onClick={(e) => {
+                        if (e.target.closest("button")) return;
+                        setSelectedStudent(student);
+                      }}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shadow-sm border border-emerald-200">
+                          {student.profile_photo ? (
+                            <img
+                              src={student.profile_photo}
+                              alt={student.full_name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <i className="fas fa-user text-emerald-500"></i>
+                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{student.course}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{student.enrollmentDate}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[student.status] || "bg-gray-100 text-gray-800"}`}>
-                        {statusIcons[student.status]}
-                        {student.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => handleEditClick(student)}
-                          className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setDeletingStudent(student)}
-                          className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredStudents.length === 0 && (
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-emerald-900">{student.full_name}</div>
+                       
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-emerald-700">{student.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-emerald-700">
+                          {student.city || 'N/A'}, {student.state || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${statusColors[student.status] || "bg-gray-100 text-gray-800 border-gray-200"} shadow-sm`}>
+                          {statusIcons[student.status]}
+                          {student.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setEditingStudent(student)}
+                            className="text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm border border-emerald-200"
+                            title="Edit student"
+                          >
+                            <i className="fas fa-edit mr-1"></i> Edit
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setDeletingStudent(student)}
+                            className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm border border-red-200"
+                            title="Delete student"
+                          >
+                            <i className="fas fa-trash mr-1"></i> Delete
+                          </motion.button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center">
-                      <svg className="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">No students found</h3>
-                      <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filter to find what you're looking for.</p>
+                    <td colSpan="6" className="px-6 py-12 text-center">
+                      <div className="text-emerald-700 flex flex-col items-center">
+                        <i className="fas fa-user-slash text-4xl text-emerald-300 mb-3"></i>
+                        <p className="font-medium">No students found</p>
+                        <p className="text-sm mt-1 text-emerald-500">
+                          {searchTerm ? 'Try adjusting your search terms' : 'Add your first student to get started'}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Edit Modal */}
-        {editingStudent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Edit Student</h2>
-                <button
-                  onClick={() => setEditingStudent(null)}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="space-y-4">
-                
-                
-                
+        {/* Detail Card Modal */}
+        <Modal isOpen={selectedStudent !== null} onClose={() => setSelectedStudent(null)} size="lg">
+          {selectedStudent && (
+            <>
+              <h2 className="text-2xl font-bold text-emerald-900 mb-2">Student Details</h2>
+              <p className="text-emerald-600 text-sm mb-6">Complete information about the student</p>
+              
+              <div className="bg-emerald-30 p-5 rounded-xl shadow-md mb-6 flex items-center">
+                <div className="h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shadow-md mr-4 border-2 border-emerald-200">
+                  {selectedStudent.profile_photo ? (
+                    <img src={selectedStudent.profile_photo} alt={selectedStudent.full_name} className="h-full w-full object-cover" />
+                  ) : (
+                    <i className="fas fa-user text-emerald-500 text-2xl"></i>
+                  )}
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={editingStudent.status}
-                    onChange={(e) => setEditingStudent({ ...editingStudent, status: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="On Leave">On Leave</option>
-                  </select>
+                  <h3 className="text-xl font-semibold text-emerald-900">{selectedStudent.full_name}</h3>
+                  <p className="text-emerald-600">{selectedStudent.email}</p>
+                </div>
+              </div>
+
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-emerald-800 mb-6">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+                <div className="text-xs text-emerald-500 font-medium mb-1">Phone</div>
+                <div className="text-emerald-800">{selectedStudent.phone || "N/A"}</div>
+
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+                <div className="text-xs text-emerald-500 font-medium mb-1">Location</div>
+                <div className="text-emerald-800">{selectedStudent.city || "N/A"}, {selectedStudent.state || "N/A"} {selectedStudent.pincode || ""}</div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+                <div className="text-xs text-emerald-500 font-medium mb-1">Qualification</div>
+                <div className="text-emerald-800">{selectedStudent.qualification || "N/A"}</div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+                <div className="text-xs text-emerald-500 font-medium mb-1">Gender</div>
+                <div className="text-emerald-800">{selectedStudent.gender || "N/A"}</div>
+              </div>
+
+              <div className="md:col-span-2 bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+                <div className="text-xs text-emerald-500 font-medium mb-2">Categories</div>
+                <ul className="list-disc pl-5 space-y-1 text-emerald-800">
+                  {Array.isArray(selectedStudent.categories) 
+                    ? selectedStudent.categories.map((cat, index) => (
+                        <li key={index}>{cat}</li>
+                      ))
+                    : selectedStudent.categories 
+                      ? <li>{selectedStudent.categories}</li>
+                      : <li>N/A</li>
+                  }
+                </ul>
+              </div>
+
+
+
+              <div className="md:col-span-2 bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+                <div className="text-xs text-emerald-500 font-medium mb-1">Status</div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[selectedStudent.status] || "bg-gray-100 text-gray-800"} shadow-sm`}>
+                  {statusIcons[selectedStudent.status]}
+                  {selectedStudent.status}
+                </span>
+              </div>
+
+              </div>
+              
+              <div className="flex justify-end mt-6 pt-4 border-t border-emerald-100">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedStudent(null)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md"
+                >
+                  Close
+                </motion.button>
+              </div>
+            </>
+          )}
+        </Modal>
+
+        {/* Edit Student Modal */}
+        <Modal isOpen={editingStudent !== null} onClose={() => setEditingStudent(null)} size="lg">
+          {editingStudent && (
+            <>
+              <h2 className="text-2xl font-bold text-emerald-900 mb-2">Edit Student</h2>
+              <p className="text-emerald-600 text-sm mb-6">Update student information</p>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-emerald-700 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={editingStudent.full_name || ""}
+                      onChange={(e) => setEditingStudent({...editingStudent, full_name: e.target.value})}
+                      className="w-full px-4 py-2.5 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-emerald-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={editingStudent.email || ""}
+                      onChange={(e) => setEditingStudent({...editingStudent, email: e.target.value})}
+                      className="w-full px-4 py-2.5 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
                 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-emerald-700 mb-1">Phone</label>
+                    <input
+                      type="text"
+                      value={editingStudent.phone || ""}
+                      onChange={(e) => setEditingStudent({...editingStudent, phone: e.target.value})}
+                      className="w-full px-4 py-2.5 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-emerald-700 mb-1">Status</label>
+                    <select
+                      value={editingStudent.status || ""}
+                      onChange={(e) => setEditingStudent({...editingStudent, status: e.target.value})}
+                      className="w-full px-4 py-2.5 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                      <option value="On Leave">On Leave</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-emerald-700 mb-1">Categories (comma separated)</label>
+                  <input
+                    type="text"
+                    value={Array.isArray(editingStudent.categories) ? editingStudent.categories.join(", ") : editingStudent.categories || ""}
+                    onChange={(e) => setEditingStudent({...editingStudent, categories: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
               </div>
-              <div className="flex justify-end mt-6 space-x-3">
-                <button
+              
+              <div className="flex justify-end mt-6 pt-4 border-t border-emerald-100 space-x-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setEditingStudent(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-emerald-300 text-emerald-700 rounded-xl hover:bg-emerald-50"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleSaveStudent}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md"
                 >
                   Save Changes
-                </button>
+                </motion.button>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </Modal>
 
         {/* Delete Confirmation Modal */}
-        {deletingStudent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+        <Modal isOpen={deletingStudent !== null} onClose={() => setDeletingStudent(null)}>
+          {deletingStudent && (
+            <div className="text-center py-4">
+              <div className="bg-red-100 text-red-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
+                <i className="fas fa-exclamation-triangle text-2xl"></i>
               </div>
-              <h3 className="mt-3 text-lg font-medium text-gray-900">Delete Student</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Are you sure you want to delete <strong>{deletingStudent.name}</strong>? This action cannot be undone.
+              <h2 className="text-xl font-bold mb-2 text-emerald-900">Delete Student</h2>
+              <p className="text-emerald-700 mb-6">
+                Are you sure you want to delete <span className="font-semibold text-red-600">{deletingStudent.full_name}</span>? This action cannot be undone.
               </p>
-              <div className="mt-5 flex justify-center space-x-3">
-                <button
+              <div className="flex justify-center space-x-4">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setDeletingStudent(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-emerald-300 text-emerald-700 rounded-xl hover:bg-emerald-50"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleDeleteConfirm}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md"
                 >
                   Delete
-                </button>
+                </motion.button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </Modal>
       </div>
     </div>
   );

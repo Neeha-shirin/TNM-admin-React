@@ -31,28 +31,28 @@ function Sidebar() {
           <SidebarItem as={Link}
             to="/"
             icon={HiBookOpen}
-            className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all"
+            className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
           >
             Dashboard
           </SidebarItem>
           <SidebarItem as={Link}
             to="/tutor"
             icon={HiBookOpen}
-            className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all"
+            className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
           >
              Tutors
           </SidebarItem>
           <SidebarItem as={Link}
             to="/student"
             icon={HiBookOpen}
-            className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all"
+            className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
           >
             Students / Leads
           </SidebarItem>
           <SidebarItem as={Link}
             to="/course"
             icon={HiBookOpen}
-            className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all"
+            className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
           >
             Courses & Categories
           </SidebarItem>
@@ -60,25 +60,39 @@ function Sidebar() {
           <SidebarItem as={Link}
             to="/assignment"
             icon={HiBookOpen}
-            className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all"
+            className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
           >
             Tutor Assigning
           </SidebarItem>
-          <SidebarItem href="#" icon={HiCreditCard} className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all">
-            Bookings & Payments
+
+          
+          <SidebarItem as={Link}
+            to="/studentassign"
+            icon={HiBookOpen}
+            className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
+          >
+            student Assigning
+          </SidebarItem>
+
+          <SidebarItem as={Link}
+              to="/payment"
+              icon={HiStar}
+              className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
+            >
+            Package & Payments
           </SidebarItem>
           <SidebarItem as={Link}
               to="/reviews"
               icon={HiStar}
-              className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all"
+              className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all"
             >
               Reviews & Ratings
           </SidebarItem>
-          <SidebarItem href="#" icon={HiChatAlt2} className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all">
+          <SidebarItem href="#" icon={HiChatAlt2} className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all">
             Messages / Chat
           </SidebarItem>
 
-          <SidebarItem href="#" icon={HiChartBar} className="py-3 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all">
+          <SidebarItem href="#" icon={HiChartBar} className="py-3 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all">
             Reports & Analytics
           </SidebarItem>
           

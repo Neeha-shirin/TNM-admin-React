@@ -1,321 +1,524 @@
-// src/pages/Course.jsx
-import { useState } from "react";
-import { FaBook, FaLayerGroup, FaUserTie, FaTrash, FaPlus, FaChevronDown } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import * as XLSX from "xlsx"; 
+import api from "../api"; 
 
-export default function Course() {
-  // Categories with subcategories
-  const [categories, setCategories] = useState([
-    { id: 1, name: "Web Development", subcategories: [{ id: 11, name: "Frontend" }, { id: 12, name: "Backend" }] },
-    { id: 2, name: "Data Science", subcategories: [{ id: 21, name: "Python" }, { id: 22, name: "Machine Learning" }] },
-  ]);
+// Toast Notification Component
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
 
-  // Courses linked to category & subcategory
-  const [courses, setCourses] = useState([
-    { id: 1, title: "React for Beginners", categoryId: 1, subcategoryId: 11, tutor: "John Doe" },
-    { id: 2, title: "Python for Data Analysis", categoryId: 2, subcategoryId: 21, tutor: "Jane Smith" },
-  ]);
+    return () => clearTimeout(timer);
+  }, [onClose]);
 
-  // Form states
-  const [newCategory, setNewCategory] = useState("");
-  const [newSubcategory, setNewSubcategory] = useState({ name: "", categoryId: "" });
-  const [newCourse, setNewCourse] = useState({ title: "", categoryId: "", subcategoryId: "", tutor: "" });
-  
-  // UI states for toggling sections
-  const [expandedSections, setExpandedSections] = useState({
-    category: true,
-    subcategory: true,
-    course: true,
-    list: true
-  });
-
-  // Toggle section visibility
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  // Handlers
-  const handleAddCategory = (e) => {
-    e.preventDefault();
-    if (!newCategory.trim()) return;
-    setCategories([...categories, { id: Date.now(), name: newCategory.trim(), subcategories: [] }]);
-    setNewCategory("");
-  };
-
-  const handleAddSubcategory = (e) => {
-    e.preventDefault();
-    if (!newSubcategory.name || !newSubcategory.categoryId) return;
-    setCategories(
-      categories.map((cat) =>
-        cat.id === parseInt(newSubcategory.categoryId)
-          ? { ...cat, subcategories: [...cat.subcategories, { id: Date.now(), name: newSubcategory.name }] }
-          : cat
-      )
-    );
-    setNewSubcategory({ name: "", categoryId: "" });
-  };
-
-  const handleAddCourse = (e) => {
-    e.preventDefault();
-    if (!newCourse.title || !newCourse.categoryId || !newCourse.subcategoryId || !newCourse.tutor) return;
-    setCourses([...courses, { id: Date.now(), ...newCourse }]);
-    setNewCourse({ title: "", categoryId: "", subcategoryId: "", tutor: "" });
-  };
-
-  const handleDeleteCategory = (id) => setCategories(categories.filter((cat) => cat.id !== id));
-  const handleDeleteSubcategory = (categoryId, subId) => {
-    setCategories(
-      categories.map((cat) =>
-        cat.id === categoryId
-          ? { ...cat, subcategories: cat.subcategories.filter((sub) => sub.id !== subId) }
-          : cat
-      )
-    );
-    // Remove courses under that subcategory
-    setCourses(courses.filter((c) => c.subcategoryId !== subId));
-  };
-  const handleDeleteCourse = (id) => setCourses(courses.filter((course) => course.id !== id));
+  const bgColor = type === "success" ? "bg-green-500" : 
+                 type === "error" ? "bg-red-500" : 
+                 type === "warning" ? "bg-yellow-500" : "bg-blue-500";
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-          <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-2 rounded-lg">📚</span>
-          <span>Course Management</span>
-        </h1>
-        <p className="text-gray-600 mt-2">Manage categories, subcategories, and courses</p>
-      </header>
+    <div className={`fixed top-4 right-4 z-50 transform transition-all duration-500 ease-in-out 
+                    animate-in slide-in-from-right-full fade-in`}>
+      <div className={`${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3`}>
+        {type === "success" && <span>✅</span>}
+        {type === "error" && <span>❌</span>}
+        {type === "warning" && <span>⚠️</span>}
+        {type === "info" && <span>ℹ️</span>}
+        <p>{message}</p>
+      </div>
+    </div>
+  );
+};
 
-      {/* Add Category */}
-      <section className="mb-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transition-all duration-300">
-        <button 
-          onClick={() => toggleSection('category')}
-          className="w-full flex justify-between items-center text-left mb-4 focus:outline-none"
-        >
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FaLayerGroup className="text-blue-600" />
-            </div>
-            Add New Category
-          </h2>
-          <FaChevronDown className={`transform transition-transform ${expandedSections.category ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {expandedSections.category && (
-          <form onSubmit={handleAddCategory} className="flex flex-col md:flex-row gap-4 transition-all duration-300">
-            <input
-              type="text"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="Category name"
-              className="flex-1 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-            />
+// Custom Confirmation Modal Component
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Delete", cancelText = "Cancel" }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300"
+        onClick={onClose}
+      ></div>
+      
+      {/* Modal */}
+      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 animate-in fade-in-90 slide-in-from-bottom-10">
+        <div className="p-6">
+          <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+          </div>
+          
+          <h3 className="text-lg font-medium text-gray-900 text-center mb-2">{title}</h3>
+          <p className="text-gray-500 text-center mb-6">{message}</p>
+          
+          <div className="flex gap-3 justify-center">
             <button
-              type="submit"
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition flex items-center justify-center gap-2"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
             >
-              <FaPlus /> Add Category
+              {cancelText}
             </button>
-          </form>
-        )}
-      </section>
-
-      {/* Add Subcategory */}
-      <section className="mb-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transition-all duration-300">
-        <button 
-          onClick={() => toggleSection('subcategory')}
-          className="w-full flex justify-between items-center text-left mb-4 focus:outline-none"
-        >
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <FaLayerGroup className="text-purple-600" />
-            </div>
-            Add New Subcategory
-          </h2>
-          <FaChevronDown className={`transform transition-transform ${expandedSections.subcategory ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {expandedSections.subcategory && (
-          <form onSubmit={handleAddSubcategory} className="flex flex-col md:flex-row gap-4 transition-all duration-300">
-            <select
-              value={newSubcategory.categoryId}
-              onChange={(e) => setNewSubcategory({ ...newSubcategory, categoryId: e.target.value })}
-              className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+              autoFocus
             >
-              <option value="">Select Category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function Course() {
+  const [categories, setCategories] = useState([]);
+  const [rootName, setRootName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set()); 
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    confirmText: "Delete",
+    cancelText: "Cancel"
+  });
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Show confirmation modal
+  const showConfirmation = (config) => {
+    setModalConfig(config);
+    setModalOpen(true);
+  };
+
+  // Add a new toast
+  const addToast = (message, type = "info") => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    return id;
+  };
+
+  // Remove a toast
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  const normalizeCategories = (cats) =>
+    cats.map((cat) => ({
+      ...cat,
+      subcategories: cat.subcategories
+        ? normalizeCategories(cat.subcategories)
+        : [],
+    }));
+
+  const fetchCategories = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.get("/category-list/");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setCategories(normalizeCategories(data));
+      setSelectedIds(new Set()); 
+      addToast("Categories refreshed successfully", "success");
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      setError("Couldn't load categories. Check API and token.");
+      addToast("Failed to load categories", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  async function createCategory({ name, parent = null }) {
+    if (!name?.trim()) return null;
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("name", name.trim());
+      if (parent) formData.append("parent", parent);
+
+      const res = await api.post("/category-create/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      addToast(`Category "${name.trim()}" created successfully`, "success");
+      await fetchCategories();
+      return res.data;
+    } catch (err) {
+      console.error("Create category failed:", err.response?.data || err);
+      setError("Creating category failed: " + JSON.stringify(err.response?.data || err.message));
+      addToast("Failed to create category", "error");
+      return null;
+    }
+  }
+
+  async function deleteCategory(id, name) {
+    if (!id) return;
+    setError("");
+    try {
+      await api.delete(`/category/${id}/delete/`);
+      addToast(`Category "${name}" deleted successfully`, "success");
+      await fetchCategories();
+    } catch (err) {
+      console.error("Delete category failed:", err.response?.data || err);
+      setError("Delete failed: " + JSON.stringify(err.response?.data || err.message));
+      addToast("Failed to delete category", "error");
+    }
+  }
+
+  // ⭐ Toggle selection
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+
+  // ⭐ Select All
+  const selectAll = () => {
+    if (selectedIds.size === categories.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(categories.map((c) => c.id)));
+    }
+  };
+
+  // ⭐ Delete Selected
+  const deleteSelected = async () => {
+    if (selectedIds.size === 0) {
+      addToast("Please select at least one category", "warning");
+      return;
+    }
+    
+    // Close modal first
+    setModalOpen(false);
+    
+    setError("");
+    setLoading(true);
+    try {
+      const deletePromises = Array.from(selectedIds).map((id) =>
+        api.delete(`/category/${id}/delete/`)
+      );
+      await Promise.all(deletePromises);
+      setSelectedIds(new Set());
+      addToast(`Deleted ${selectedIds.size} categories successfully`, "success");
+      await fetchCategories();
+      setDeleteMode(false); // exit delete mode
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+      setError("Bulk delete failed: " + (err.response?.data || err.message));
+      addToast("Failed to delete categories", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Excel Upload Handler
+  const handleExcelUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = null;
+    setUploading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await api.post("/category-create/", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      console.log("Backend response:", res.data);
+      addToast("Excel uploaded successfully!", "success");
+      await fetchCategories();
+    } catch (err) {
+      console.error("Excel upload failed:", err);
+      setError("Excel upload failed: " + (err.response?.data?.error || err.message));
+      addToast("Excel upload failed", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  function CategoryNode({ node, level = 0 }) {
+    const [childName, setChildName] = useState("");
+    const [showChildInput, setShowChildInput] = useState(false);
+    const [expanded, setExpanded] = useState(true);
+
+    const icons = ["📂", "📁", "📝"];
+    const icon = icons[level] || "🔹";
+
+    return (
+      <li className="transition-all duration-300 ease-in-out hover:scale-[1.01]">
+        <div
+          className="flex items-center justify-between p-3 rounded-lg border bg-white shadow-sm hover:shadow-md transition"
+          style={{ marginLeft: `${level * 20}px` }}
+        >
+          <div className="flex items-center gap-2">
+            {/* ⭐ Show checkbox only in delete mode */}
+            {deleteMode && (
+              <input
+                type="checkbox"
+                checked={selectedIds.has(node.id)}
+                onChange={() => toggleSelect(node.id)}
+                className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+            )}
+
+            {node.subcategories.length > 0 && (
+              <button
+                className="text-xs px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 transition-colors"
+                onClick={() => setExpanded((e) => !e)}
+              >
+                {expanded ? "▼" : "▶"}
+              </button>
+            )}
+            <span className="text-lg">{icon}</span>
+            <span
+              className={`${
+                level === 0
+                  ? "font-bold text-gray-800"
+                  : level === 1
+                  ? "font-semibold text-gray-700"
+                  : "text-gray-600"
+              }`}
+            >
+              {node.name}
+            </span>
+          </div>
+
+          {!deleteMode && (
+            <div className="flex gap-2">
+              <button
+                className="text-sm px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
+                onClick={() => setShowChildInput((s) => !s)}
+              >
+                ➕ Sub
+              </button>
+              <button
+                className="text-sm px-2 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
+                onClick={() => {
+                  showConfirmation({
+                    title: "Delete Category",
+                    message: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
+                    confirmText: "Delete",
+                    onConfirm: () => deleteCategory(node.id, node.name)
+                  });
+                }}
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          )}
+        </div>
+
+        {showChildInput && !deleteMode && (
+          <div className="mt-2 ml-10 flex gap-2 items-center animate-in fade-in duration-300">
             <input
-              type="text"
-              value={newSubcategory.name}
-              onChange={(e) => setNewSubcategory({ ...newSubcategory, name: e.target.value })}
+              value={childName}
+              onChange={(e) => setChildName(e.target.value)}
               placeholder="Subcategory name"
-              className="flex-1 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+              className="border border-gray-300 rounded px-3 py-1 flex-1 transition-all focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <button
-              type="submit"
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition flex items-center justify-center gap-2"
+              className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
+              onClick={() => {
+                createCategory({ name: childName, parent: node.id });
+                setChildName("");
+                setShowChildInput(false);
+              }}
             >
-              <FaPlus /> Add Subcategory
+              Add
             </button>
-          </form>
-        )}
-      </section>
-
-      {/* Add Course */}
-      <section className="mb-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transition-all duration-300">
-        <button 
-          onClick={() => toggleSection('course')}
-          className="w-full flex justify-between items-center text-left mb-4 focus:outline-none"
-        >
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <FaBook className="text-green-600" />
-            </div>
-            Add New Course
-          </h2>
-          <FaChevronDown className={`transform transition-transform ${expandedSections.course ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {expandedSections.course && (
-          <form onSubmit={handleAddCourse} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 transition-all duration-300">
-            <input
-              type="text"
-              value={newCourse.title}
-              onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
-              placeholder="Course title"
-              className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all"
-            />
-            <select
-              value={newCourse.categoryId}
-              onChange={(e) => setNewCourse({ ...newCourse, categoryId: parseInt(e.target.value), subcategoryId: "" })}
-              className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all"
-            >
-              <option value="">Select Category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            <select
-              value={newCourse.subcategoryId}
-              onChange={(e) => setNewCourse({ ...newCourse, subcategoryId: parseInt(e.target.value) })}
-              className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all"
-              disabled={!newCourse.categoryId}
-            >
-              <option value="">Select Subcategory</option>
-              {newCourse.categoryId &&
-                categories.find((cat) => cat.id === newCourse.categoryId)?.subcategories.map((sub) => (
-                  <option key={sub.id} value={sub.id}>{sub.name}</option>
-                ))
-              }
-            </select>
-            <input
-              type="text"
-              value={newCourse.tutor}
-              onChange={(e) => setNewCourse({ ...newCourse, tutor: e.target.value })}
-              placeholder="Tutor name"
-              className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all md:col-span-1 lg:col-span-1"
-            />
-            <button
-              type="submit"
-              className="px-6 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition flex items-center justify-center gap-2 md:col-span-2 lg:col-span-1"
-            >
-              <FaPlus /> Add Course
-            </button>
-          </form>
-        )}
-      </section>
-
-      {/* Categories & Subcategories List */}
-      <section className="mb-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transition-all duration-300">
-        <button 
-          onClick={() => toggleSection('list')}
-          className="w-full flex justify-between items-center text-left mb-4 focus:outline-none"
-        >
-          <h2 className="text-xl font-semibold text-gray-800">📂 Categories & Subcategories</h2>
-          <FaChevronDown className={`transform transition-transform ${expandedSections.list ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {expandedSections.list && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-all duration-300">
-            {categories.map((cat) => (
-              <div key={cat.id} className="p-4 bg-gray-50 border border-gray-200 shadow-sm rounded-xl transition-all hover:shadow-md">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-medium text-gray-700 text-lg">{cat.name}</span>
-                  <button
-                    onClick={() => handleDeleteCategory(cat.id)}
-                    className="text-red-600 hover:text-red-800 flex items-center gap-1 text-sm bg-red-50 p-2 rounded-lg transition-all hover:bg-red-100"
-                  >
-                    <FaTrash /> Delete
-                  </button>
-                </div>
-                <div className="pl-2">
-                  {cat.subcategories.map((sub) => (
-                    <div key={sub.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
-                      <span className="text-gray-600">- {sub.name}</span>
-                      <button
-                        onClick={() => handleDeleteSubcategory(cat.id, sub.id)}
-                        className="text-red-500 hover:text-red-700 text-xs bg-red-50 p-1 rounded transition-all hover:bg-red-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         )}
-      </section>
 
-      {/* Courses Table */}
-      <section className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">📘 Courses</h2>
-        <div className="overflow-x-auto bg-white shadow-md rounded-xl">
-          <table className="w-full text-sm text-left text-gray-700">
-            <thead className="text-xs uppercase bg-gray-100">
-              <tr>
-                <th className="px-4 py-3 md:px-6">Title</th>
-                <th className="px-4 py-3 md:px-6">Category</th>
-                <th className="px-4 py-3 md:px-6 hidden md:table-cell">Subcategory</th>
-                <th className="px-4 py-3 md:px-6">Tutor</th>
-                <th className="px-4 py-3 md:px-6">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {courses.map((course) => {
-                const category = categories.find((c) => c.id === course.categoryId);
-                const subcategory = category?.subcategories.find((sc) => sc.id === course.subcategoryId);
-                return (
-                  <tr key={course.id} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4 md:px-6 font-medium">{course.title}</td>
-                    <td className="px-4 py-4 md:px-6">{category?.name}</td>
-                    <td className="px-4 py-4 md:px-6 hidden md:table-cell">{subcategory?.name}</td>
-                    <td className="px-4 py-4 md:px-6 flex items-center gap-2">
-                      <div className="bg-gray-100 p-2 rounded-full">
-                        <FaUserTie className="text-gray-500 text-sm" />
-                      </div>
-                      <span>{course.tutor}</span>
-                    </td>
-                    <td className="px-4 py-4 md:px-6">
-                      <button
-                        onClick={() => handleDeleteCourse(course.id)}
-                        className="text-red-600 hover:text-red-800 flex items-center gap-1 text-sm bg-red-50 py-2 px-3 rounded-lg transition-all hover:bg-red-100"
-                      >
-                        <FaTrash /> <span className="hidden sm:inline">Delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        {expanded && node.subcategories.length > 0 && (
+          <ul className="mt-2 space-y-2 animate-in fade-in duration-300">
+            {node.subcategories.map((child) => (
+              <CategoryNode key={child.id} node={child} level={level + 1} />
+            ))}
+          </ul>
+        )}
+      </li>
+    );
+  }
+
+  return (
+    <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
+      {/* Toast Container */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <Toast 
+            key={toast.id} 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => removeToast(toast.id)} 
+          />
+        ))}
+      </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={modalConfig.onConfirm}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
+      <h1 className="text-xl sm:text-2xl font-bold mb-1">
+        📂 Category Management
+      </h1>
+      <p className="text-gray-600 mb-4">
+        Infinite nesting (Category → Sub → Sub → ...)
+      </p>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 animate-pulse">
+          {error}
         </div>
-      </section>
+      )}
+
+      <div className="mb-6 flex flex-col sm:flex-row gap-2 sm:items-center">
+        {!deleteMode && (
+          <input
+            value={rootName}
+            onChange={(e) => setRootName(e.target.value)}
+            placeholder="Root category name"
+            className="flex-1 border border-gray-300 rounded px-3 py-2 min-w-[220px] transition-all focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {!deleteMode && (
+            <>
+              <button
+                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition-colors hover:scale-105 transform"
+                onClick={() => {
+                  createCategory({ name: rootName, parent: null });
+                  setRootName("");
+                }}
+              >
+                + Add Root
+              </button>
+              <button
+                className="px-3 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 transition-colors"
+                onClick={fetchCategories}
+                disabled={loading}
+              >
+                {loading ? "⏳ Refreshing..." : "🔄 Refresh"}
+              </button>
+              <label className={`px-4 py-2 rounded text-white cursor-pointer transition-colors ${uploading ? 'bg-blue-400 animate-pulse' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 transform'}`}>
+                {uploading ? "⏳ Uploading..." : "📊 Upload Excel"}
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
+            </>
+          )}
+
+          {categories.length > 0 && (
+            <>
+              {!deleteMode ? (
+                <button
+                  className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors hover:scale-105 transform"
+                  onClick={() => setDeleteMode(true)}
+                >
+                  🗑️ Delete Mode
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="px-4 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 transition-colors"
+                    onClick={selectAll}
+                  >
+                    {selectedIds.size === categories.length
+                      ? "Deselect All"
+                      : "Select All"}
+                  </button>
+
+                  <button
+                    className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      showConfirmation({
+                        title: "Delete Categories",
+                        message: `Are you sure you want to delete ${selectedIds.size} categories? This action cannot be undone.`,
+                        confirmText: `Delete ${selectedIds.size} Categories`,
+                        onConfirm: deleteSelected
+                      });
+                    }}
+                    disabled={loading || selectedIds.size === 0}
+                  >
+                    {loading ? "⏳ Deleting..." : `🗑️ Delete Selected (${selectedIds.size})`}
+                  </button>
+
+                  <button
+                    className="px-4 py-2 rounded bg-gray-300 text-gray-800 hover:bg-gray-400 transition-colors"
+                    onClick={() => {
+                      setDeleteMode(false);
+                      setSelectedIds(new Set());
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-white p-4 shadow-sm transition-all duration-300">
+        {loading ? (
+          <div className="text-gray-600 flex items-center">
+            <span className="animate-spin mr-2">⏳</span> Loading categories...
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="text-gray-600 animate-pulse">
+            No categories yet. Add one above 👆
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {categories.map((node) => (
+              <CategoryNode key={node.id} node={node} />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

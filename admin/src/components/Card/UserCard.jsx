@@ -9,7 +9,7 @@ export const UserCard = ({ icon, title, value }) => {
                    transform hover:-translate-y-1 hover:scale-105 h-[90%]"
       >
         {/* Icon */}
-        <div className="text-blue-500 text-4xl mb-3 animate-bounce">
+        <div className="text-green-600 text-4xl mb-3 animate-bounce">
           {icon}
         </div>
 
